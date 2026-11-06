@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Дневник</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23000'/><rect x='22' y='26' width='56' height='6' fill='%23fff'/><rect x='22' y='47' width='56' height='6' fill='%23fff'/><rect x='22' y='68' width='34' height='6' fill='%23fff'/></svg>">
+<style>
+  :root{
+    --bg:#ffffff;
+    --fg:#000000;
+    --muted:#8a8a8a;
+    --line:#e3e3e3;
+    --line-strong:#000000;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0b0b0b;
+      --fg:#f5f5f5;
+      --muted:#7a7a7a;
+      --line:#232323;
+      --line-strong:#f5f5f5;
+    }
+  }
+
+  *{box-sizing:border-box;margin:0;padding:0}
+
+  body{
+    background:var(--bg);
+    color:var(--fg);
+    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size:15px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  ::selection{background:var(--fg);color:var(--bg)}
+
+  .app{max-width:780px;margin:0 auto;padding:0 22px 110px}
+
+  /* ---------- верхние вкладки ---------- */
+  .tabs{
+    position:sticky;top:0;z-index:20;
+    display:flex;
+    background:var(--bg);
+    border-bottom:1px solid var(--line);
+  }
+  .tab{
+    flex:1;
+    padding:18px 8px;
+    background:none;border:0;
+    border-bottom:2px solid transparent;
+    margin-bottom:-1px;
+    color:var(--muted);
+    font:inherit;
+    font-size:11.5px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:color .15s, border-color .15s;
+  }
+  .tab:hover{color:var(--fg)}
+  .tab.active{color:var(--fg);border-bottom-color:var(--fg)}
+
+  /* ---------- виды ---------- */
+  .view{display:none}
+  .view.active{display:block;animation:fade .18s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+
+  .view-head{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:16px;padding:34px 0 22px;
+  }
+  .view-head h1{font-size:22px;font-weight:600;letter-spacing:-.01em}
+
+  /* ---------- кнопки ---------- */
+  .btn{
+    background:var(--fg);color:var(--bg);
+    border:1px solid var(--fg);
+    padding:9px 16px;
+    font:inherit;font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    cursor:pointer;
+    transition:background .15s, color .15s, border-color .15s;
+    white-space:nowrap;
+  }
+  .btn:hover{background:var(--bg);color:var(--fg)}
+  .btn.ghost{background:transparent;color:var(--muted);border-color:var(--line)}
+  .btn.ghost:hover{color:var(--fg);border-color:var(--fg)}
+  .btn.small{padding:7px 12px;font-size:10.5px}
+
+  /* ---------- карточки ---------- */
+  .list{display:block}
+
+  .card{
+    position:relative;
+    border:1px solid var(--line);
+    padding:16px 46px 16px 18px;
+    margin-bottom:10px;
+    cursor:pointer;
+    transition:border-color .15s;
+  }
+  .card:hover{border-color:var(--line-strong)}
+
+  .card-meta{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .card-title{font-weight:600;margin-bottom:3px;word-break:break-word}
+  .card-text{
+    color:var(--muted);font-size:14px;white-space:pre-wrap;word-break:break-word;
+    display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;
+  }
+
+  .del{
+    position:absolute;top:9px;right:9px;
+    width:26px;height:26px;
+    display:flex;align-items:center;justify-content:center;
+    background:transparent;
+    border:1px solid transparent;
+    color:var(--muted);
+    font-size:17px;line-height:1;
+    cursor:pointer;
+    opacity:0;
+    transition:opacity .15s, color .15s, border-color .15s;
+  }
+  .card:hover .del{opacity:1}
+  .del:hover{color:var(--fg);border-color:var(--line-strong)}
+  @media (hover:none){ .del{opacity:1} }
+
+  .empty{
+    padding:44px 20px;
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+    border:1px dashed var(--line);
+    margin-bottom:10px;
+  }
+
+  /* ---------- подвкладки терминов ---------- */
+  .subtabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:24px}
+  .subtab{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--muted);
+    padding:7px 14px;
+    font:inherit;font-size:13px;
+    cursor:pointer;
+    transition:color .15s, border-color .15s, background .15s;
+    max-width:100%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .subtab:hover{color:var(--fg);border-color:var(--fg)}
+  .subtab.active{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+  .subtab.plus{padding:7px 13px;font-size:15px;line-height:1}
+
+  .cat-head{
+    display:flex;align-items:center;justify-content:space-between;
+    gap:16px;flex-wrap:wrap;
+    padding-bottom:14px;margin-bottom:16px;
+    border-bottom:1px solid var(--line);
+  }
+  .cat-title{font-size:17px;font-weight:600;word-break:break-word}
+  .tools{display:flex;gap:8px;flex-wrap:wrap}
+
+  /* ---------- планы ---------- */
+  .card.plan{display:flex;gap:12px;align-items:flex-start}
+  .cb{
+    width:16px;height:16px;flex:none;margin-top:4px;
+    accent-color:var(--fg);
+    cursor:pointer;
+  }
+  .plan-body{flex:1;min-width:0}
+  .card.plan.done .card-title,
+  .card.plan.done .card-text{text-decoration:line-through;color:var(--muted);opacity:.65}
+
+  /* ---------- модальное окно ---------- */
+  .modal{
+    position:fixed;inset:0;z-index:100;
+    display:none;
+    align-items:center;justify-content:center;
+    padding:20px;
+    background:rgba(120,120,120,.32);
+    backdrop-filter:blur(3px);
+  }
+  .modal.open{display:flex}
+  .modal-box{
+    background:var(--bg);
+    border:1px solid var(--line-strong);
+    width:100%;max-width:560px;max-height:88vh;
+    display:flex;flex-direction:column;
+    animation:pop .16s ease;
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .modal-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 20px;
+    border-bottom:1px solid var(--line);
+  }
+  .modal-head span{
+    font-family:var(--mono);
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+  }
+  .modal-head .x{
+    background:none;border:0;color:var(--muted);
+    font-size:22px;line-height:1;cursor:pointer;padding:0 4px;
+    transition:color .15s;
+  }
+  .modal-head .x:hover{color:var(--fg)}
+
+  .modal-body{padding:20px;overflow:auto}
+  .modal-foot{
+    display:flex;justify-content:flex-end;gap:8px;
+    padding:14px 20px;
+    border-top:1px solid var(--line);
+  }
+
+  .field{display:block;margin-bottom:16px}
+  .field:last-child{margin-bottom:0}
+  .field .label{
+    display:block;
+    font-family:var(--mono);
+    font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:7px;
+  }
+
+  input[type=text],
+  input[type=date],
+  textarea{
+    width:100%;
+    background:transparent;
+    color:var(--fg);
+    border:1px solid var(--line);
+    padding:10px 12px;
+    font:inherit;font-size:14px;
+    outline:none;
+    border-radius:0;
+    resize:vertical;
+    transition:border-color .15s;
+  }
+  input[type=text]:focus,
+  input[type=date]:focus,
+  textarea:focus{border-color:var(--fg)}
+  input::placeholder, textarea::placeholder{color:var(--muted);opacity:.7}
+  input[type=date]{font-family:var(--mono);font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <nav class="tabs">
+    <button class="tab" data-view="days">Дни</button>
+    <button class="tab" data-view="terms">Термины</button>
+    <button class="tab" data-view="plans">Планы</button>
+  </nav>
+
+  <main>
+    <section id="view-days" class="view"></section>
+    <section id="view-terms" class="view"></section>
+    <section id="view-plans" class="view"></section>
+  </main>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span id="modalTitle"></span>
+      <button class="x" id="modalClose" aria-label="Закрыть">×</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot">
+      <button class="btn ghost" id="modalCancel">Отмена</button>
+      <button class="btn" id="modalSave">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   ХРАНИЛИЩЕ
+   ========================================================= */
+const KEY = 'diary_v1';
+const DEFAULT_DB = { days: [], terms: [], plans: [], activeTerm: null, view: 'days' };
+let db = loadDB();
+
+function loadDB(){
+  try{
+    const raw = localStorage.getItem(KEY);
+    if(!raw) return Object.assign({}, DEFAULT_DB, {days:[], terms:[], plans:[]});
+    return Object.assign({}, DEFAULT_DB, JSON.parse(raw));
+  }catch(e){
+    return Object.assign({}, DEFAULT_DB, {days:[], terms:[], plans:[]});
+  }
+}
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(db)); }catch(e){}
+}
+function uid(){
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+/* =========================================================
+   МЕЛОЧИ
+   ========================================================= */
+const MONTHS = ['января','февраля','марта','апреля','мая','июня',
+                'июля','августа','сентября','октября','ноября','декабря'];
+
+function todayISO(){
+  const d = new Date();
+  return d.getFullYear() + '-' +
+         String(d.getMonth()+1).padStart(2,'0') + '-' +
+         String(d.getDate()).padStart(2,'0');
+}
+function fmtDate(iso){
+  if(!iso || typeof iso !== 'string') return '';
+  const p = iso.split('-');
+  if(p.length !== 3) return iso;
+  const y = +p[0], m = +p[1], d = +p[2];
+  if(!y || !m || !d) return iso;
+  return d + ' ' + MONTHS[m-1] + ' ' + y;
+}
+
+function h(tag, props, ...kids){
+  const el = document.createElement(tag);
+  if(props){
+    for(const k in props){
+      const v = props[k];
+      if(v === null || v === undefined || v === false) continue;
+      if(k === 'class') el.className = v;
+      else if(k === 'text') el.textContent = v;
+      else if(k.slice(0,2) === 'on' && typeof v === 'function')
+        el.addEventListener(k.slice(2).toLowerCase(), v);
+      else el.setAttribute(k, v);
+    }
+  }
+  kids.flat(Infinity).forEach(k => {
+    if(k === null || k === undefined || k === false || k === '') return;
+    el.append(k.nodeType ? k : document.createTextNode(String(k)));
+  });
+  return el;
+}
+
+/* =========================================================
+   МОДАЛЬНОЕ ОКНО
+   ========================================================= */
+let modalSaveHandler = null;
+
+function openModal(title, fields, onSave){
+  const modal = document.getElementById('modal');
+  document.getElementById('modalTitle').textContent = title;
+
+  const body = document.getElementById('modalBody');
+  body.innerHTML = '';
+
+  const inputs = {};
+  fields.forEach(f => {
+    const wrap = h('label', {class:'field'});
+    wrap.append(h('span', {class:'label', text:f.label}));
+
+    let inp;
+    if(f.type === 'textarea') inp = h('textarea', {rows: f.rows || 6});
+    else inp = h('input', {type: f.type || 'text'});
+
+    inp.value = f.value || '';
+    if(f.placeholder) inp.placeholder = f.placeholder;
+
+    inputs[f.name] = inp;
+    wrap.append(inp);
+    body.append(wrap);
+  });
+
+  modalSaveHandler = () => {
+    const vals = {};
+    for(const k in inputs) vals[k] = inputs[k].value;
+    if(onSave(vals) !== false) closeModal();
+  };
+
+  modal.classList.add('open');
+  const first = body.querySelector('input, textarea');
+  if(first) setTimeout(() => first.focus(), 40);
+}
+
+function closeModal(){
+  document.getElementById('modal').classList.remove('open');
+  modalSaveHandler = null;
+}
+
+/* =========================================================
+   ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК
+   ========================================================= */
+function setView(name){
+  db.view = name; save();
+
+  document.querySelectorAll('.tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.view === name));
+  document.querySelectorAll('.view').forEach(v =>
+    v.classList.toggle('active', v.id === 'view-' + name));
+
+  if(name === 'days')  renderDays();
+  if(name === 'terms') renderTerms();
+  if(name === 'plans') renderPlans();
+  window.scrollTo({top:0});
+}
+
+/* =========================================================
+   ДНИ
+   ========================================================= */
+function renderDays(){
+  const view = document.getElementById('view-days');
+  view.innerHTML = '';
+
+  view.append(
+    h('div', {class:'view-head'},
+      h('h1', {text:'Дни'}),
+      h('button', {class:'btn', text:'+ Новый день', onClick:() => editDay(null)})
+    )
+  );
+
+  const list = h('div', {class:'list'});
+  const items = db.days.slice().sort((a,b) =>
+    (b.date || '').localeCompare(a.date || '') || (b.created || 0) - (a.created || 0));
+
+  if(!items.length){
+    list.append(h('div', {class:'empty', text:'Пока пусто. Нажми «+ Новый день», чтобы начать.'}));
+  }
+
+  items.forEach(d => {
+    const card = h('div', {class:'card', onClick:() => editDay(d.id)},
+      h('div', {class:'card-meta', text: fmtDate(d.date) || 'без даты'}),
+      d.title ? h('div', {class:'card-title', text:d.title}) : null,
+      d.text  ? h('div', {class:'card-text',  text:d.text})  : null
+    );
+    card.append(h('button', {
+      class:'del', text:'×', title:'Удалить',
+      onClick:(e) => { e.stopPropagation(); removeDay(d.id); }
+    }));
+    list.append(card);
+  });
+
+  view.append(list);
+}
+
+function editDay(id){
+  const existing = id ? db.days.find(d => d.id === id) : null;
+  const item = existing || {id: uid(), date: todayISO(), title:'', text:'', created: Date.now()};
+
+  openModal(existing ? 'Запись дня' : 'Новый день', [
+    {name:'date',  label:'Дата',     type:'date', value:item.date},
+    {name:'title', label:'Заголовок', value:item.title, placeholder:'Например: понедельник'},
+    {name:'text',  label:'Заметка',  type:'textarea', value:item.text, rows:10, placeholder:'Что произошло...'}
+  ], v => {
+    item.date  = v.date || todayISO();
+    item.title = v.title.trim();
+    item.text  = v.text.replace(/\s+$/,'');
+
+    if(!existing){
+      if(!item.title && !item.text) return false;
+      db.days.push(item);
+    }
+    save(); renderDays();
+  });
+}
+
+function removeDay(id){
+  if(!confirm('Удалить эту запись?')) return;
+  db.days = db.days.filter(d => d.id !== id);
+  save(); renderDays();
+}
+
+/* =========================================================
+   ТЕРМИНЫ
+   ========================================================= */
+function renderTerms(){
+  const view = document.getElementById('view-terms');
+  view.innerHTML = '';
+
+  view.append(h('div', {class:'view-head'}, h('h1', {text:'Термины'})));
+
+  let cat = db.terms.find(t => t.id === db.activeTerm) || db.terms[0] || null;
+  if(cat) db.activeTerm = cat.id;
+
+  // подвкладки
+  const bar = h('div', {class:'subtabs'});
+  db.terms.forEach(t => {
+    bar.append(h('button', {
+      class:'subtab' + (cat && t.id === cat.id ? ' active' : ''),
+      text: t.name,
+      title: t.name,
+      onClick: () => { db.activeTerm = t.id; save(); renderTerms(); }
+    }));
+  });
+  bar.append(h('button', {
+    class:'subtab plus', text:'+', title:'Новый раздел',
+    onClick: addCategory
+  }));
+  view.append(bar);
+
+  if(!cat){
+    view.append(h('div', {class:'empty', text:'Разделов нет. Нажми «+», чтобы создать первый.'}));
+    return;
+  }
+
+  // шапка раздела
+  view.append(
+    h('div', {class:'cat-head'},
+      h('div', {class:'cat-title', text:cat.name}),
+      h('div', {class:'tools'},
+        h('button', {class:'btn small', text:'+ Термин', onClick:() => editTerm(cat, null)}),
+        h('button', {class:'btn ghost small', text:'Переименовать', onClick:() => renameCategory(cat)}),
+        h('button', {class:'btn ghost small', text:'Удалить', onClick:() => deleteCategory(cat)})
+      )
+    )
+  );
+
+  // список терминов
+  const list = h('div', {class:'list'});
+  if(!cat.items.length){
+    list.append(h('div', {class:'empty', text:'В этом разделе пока нет терминов.'}));
+  }
+  cat.items.forEach(t => {
+    const card = h('div', {class:'card', onClick:() => editTerm(cat, t.id)},
+      h('div', {class:'card-title', text:t.name}),
+      t.def ? h('div', {class:'card-text', text:t.def}) : null
+    );
+    card.append(h('button', {
+      class:'del', text:'×', title:'Удалить',
+      onClick:(e) => { e.stopPropagation(); removeTerm(cat, t.id); }
+    }));
+    list.append(card);
+  });
+  view.append(list);
+}
+
+function addCategory(){
+  openModal('Новый раздел', [
+    {name:'name', label:'Название раздела', placeholder:'Например: JavaScript'}
+  ], v => {
+    const name = v.name.trim();
+    if(!name) return false;
+    const cat = {id: uid(), name, items: []};
+    db.terms.push(cat);
+    db.activeTerm = cat.id;
+    save(); renderTerms();
+  });
+}
+
+function renameCategory(cat){
+  openModal('Переименовать раздел', [
+    {name:'name', label:'Название', value: cat.name}
+  ], v => {
+    const name = v.name.trim();
+    if(!name) return false;
+    cat.name = name;
+    save(); renderTerms();
+  });
+}
+
+function deleteCategory(cat){
+  if(!confirm('Удалить раздел «' + cat.name + '» вместе со всеми терминами?')) return;
+  db.terms = db.terms.filter(t => t.id !== cat.id);
+  if(db.activeTerm === cat.id) db.activeTerm = db.terms[0] ? db.terms[0].id : null;
+  save(); renderTerms();
+}
+
+function editTerm(cat, id){
+  const existing = id ? cat.items.find(i => i.id === id) : null;
+  const item = existing || {id: uid(), name:'', def:''};
+
+  openModal(existing ? 'Термин' : 'Новый термин', [
+    {name:'name', label:'Термин',       value:item.name, placeholder:'Название'},
+    {name:'def',  label:'Определение',  type:'textarea', value:item.def, rows:6, placeholder:'Что это значит...'}
+  ], v => {
+    const name = v.name.trim();
+    if(!name) return false;
+    item.name = name;
+    item.def  = v.def.replace(/\s+$/,'');
+    if(!existing) cat.items.push(item);
+    save(); renderTerms();
+  });
+}
+
+function removeTerm(cat, id){
+  if(!confirm('Удалить этот термин?')) return;
+  cat.items = cat.items.filter(i => i.id !== id);
+  save(); renderTerms();
+}
+
+/* =========================================================
+   ПЛАНЫ
+   ========================================================= */
+function renderPlans(){
+  const view = document.getElementById('view-plans');
+  view.innerHTML = '';
+
+  view.append(
+    h('div', {class:'view-head'},
+      h('h1', {text:'Планы'}),
+      h('button', {class:'btn', text:'+ Заметка', onClick:() => editPlan(null)})
+    )
+  );
+
+  const list = h('div', {class:'list'});
+  const items = db.plans.slice().sort((a,b) =>
+    (a.done - b.done) || ((b.created || 0) - (a.created || 0)));
+
+  if(!items.length){
+    list.append(h('div', {class:'empty', text:'Планов пока нет. Добавь первую заметку.'}));
+  }
+
+  items.forEach(p => {
+    const card = h('div', {class:'card plan' + (p.done ? ' done' : '')},
+      h('input', {
+        class:'cb', type:'checkbox',
+        onChange: (e) => { p.done = e.target.checked; save(); renderPlans(); }
+      }),
+      h('div', {class:'plan-body', onClick:() => editPlan(p.id)},
+        p.title ? h('div', {class:'card-title', text:p.title}) : null,
+        p.text  ? h('div', {class:'card-text',  text:p.text})  : null
+      )
+    );
+    if(p.done) card.querySelector('.cb').checked = true;
+
+    card.append(h('button', {
+      class:'del', text:'×', title:'Удалить',
+      onClick:(e) => { e.stopPropagation(); removePlan(p.id); }
+    }));
+    list.append(card);
+  });
+
+  view.append(list);
+}
+
+function editPlan(id){
+  const existing = id ? db.plans.find(p => p.id === id) : null;
+  const item = existing || {id: uid(), title:'', text:'', done:false, created: Date.now()};
+
+  openModal(existing ? 'Заметка' : 'Новая заметка', [
+    {name:'title', label:'Заголовок', value:item.title, placeholder:'Например: дочитать главу'},
+    {name:'text',  label:'Примечание', type:'textarea', value:item.text, rows:6, placeholder:'Детали, сроки, мысли...'}
+  ], v => {
+    item.title = v.title.trim();
+    item.text  = v.text.replace(/\s+$/,'');
+
+    if(!existing){
+      if(!item.title && !item.text) return false;
+      db.plans.push(item);
+    }
+    save(); renderPlans();
+  });
+}
+
+function removePlan(id){
+  if(!confirm('Удалить эту заметку?')) return;
+  db.plans = db.plans.filter(p => p.id !== id);
+  save(); renderPlans();
+}
+
+/* =========================================================
+   ИНИЦИАЛИЗАЦИЯ
+   ========================================================= */
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => setView(t.dataset.view));
+});
+
+document.getElementById('modalClose').onclick  = closeModal;
+document.getElementById('modalCancel').onclick = closeModal;
+document.getElementById('modalSave').onclick   = () => { if(modalSaveHandler) modalSaveHandler(); };
+
+document.getElementById('modal').addEventListener('mousedown', e => {
+  if(e.target.id === 'modal') closeModal();
+});
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && document.getElementById('modal').classList.contains('open')) closeModal();
+  if((e.ctrlKey || e.metaKey) && e.key === 'Enter' && modalSaveHandler){
+    e.preventDefault();
+    modalSaveHandler();
+  }
+});
+
+setView(db.view || 'days');
+</script>
+</body>
+</html>
